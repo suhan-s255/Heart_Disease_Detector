@@ -199,30 +199,15 @@ with tab1:
     if uploaded_file is not None:
         try:
             df_uploaded = pd.read_csv(uploaded_file)
-            input_scaled, df_display = prepare_batch_inputs(df_uploaded, scaler, feature_names)
-
-            # Predict using selected model
-            if selected_model_name in models:
-                batch_model = models[selected_model_name]
-            else:
-                # fallback to any available model
-                batch_model = list(models.values())[0]
-
-            preds = batch_model.predict(input_scaled)
-            prob = batch_model.predict_proba(input_scaled)
-
-            df_display = df_display.reset_index(drop=True)
-            df_display['prediction'] = preds
-            df_display['prob_no_disease'] = prob[:, 0]
-            df_display['prob_disease'] = prob[:, 1]
-
-            st.markdown("### Batch Prediction Results")
-            st.dataframe(df_display, use_container_width=True)
-
-            csv = df_display.to_csv(index=False)
-            st.download_button("Download predictions as CSV", csv, file_name='predictions.csv', mime='text/csv')
+            # store uploaded DataFrame in session_state so Predict button can use it
+            st.session_state['uploaded_df'] = df_uploaded
+            st.success(f"Loaded {len(df_uploaded)} rows from uploaded CSV. Click 'Predict' to run batch predictions.")
+            st.dataframe(df_uploaded.head(), use_container_width=True)
+            if st.button("Clear uploaded CSV"):
+                del st.session_state['uploaded_df']
+                st.experimental_rerun()
         except Exception as e:
-            st.error(f"Error processing uploaded CSV: {e}")
+            st.error(f"Error reading uploaded CSV: {e}")
             st.stop()
 
     st.markdown('---')
@@ -312,96 +297,124 @@ with tab1:
     
     # Prediction button
     if st.button("🔮 Predict Heart Disease Risk", type="primary", use_container_width=True):
-        # Prepare base features
-        base_features = {
-            'age': age,
-            'sex': sex,
-            'cp': cp,
-            'trestbps': trestbps,
-            'chol': chol,
-            'fbs': fbs,
-            'restecg': restecg,
-            'thalachh': thalachh,
-            'exang': exang,
-            'oldpeak': oldpeak,
-            'slope': slope,
-            'ca': ca,
-            'thal': thal
-        }
-        
-        # Build a single-row DataFrame from manual inputs and reuse the batch preparation
-        try:
-            df_single = pd.DataFrame([base_features])
-            input_scaled, df_features = prepare_batch_inputs(df_single, scaler, feature_names)
+        # If an uploaded DataFrame exists in session_state, run batch prediction
+        if 'uploaded_df' in st.session_state:
+            try:
+                df_uploaded = st.session_state['uploaded_df']
+                input_scaled, df_display = prepare_batch_inputs(df_uploaded, scaler, feature_names)
 
-            # Select model (fall back if selection missing)
-            if selected_model_name in models:
-                single_model = models[selected_model_name]
-            else:
-                single_model = list(models.values())[0]
-
-            prediction = single_model.predict(input_scaled)
-            probability = single_model.predict_proba(input_scaled)[0]
-
-            # Display results
-            st.markdown("### 🎯 Prediction Results")
-            col1, col2 = st.columns(2)
-
-            with col1:
-                if int(prediction[0]) == 0:
-                    st.markdown(
-                        '<div class="prediction-box healthy">'
-                        '<h2 style="color: #27AE60; text-align: center;">✅ Low Risk</h2>'
-                        '<p style="text-align: center; font-size: 1.2rem;">No significant heart disease risk detected</p>'
-                        '</div>',
-                        unsafe_allow_html=True
-                    )
+                # Predict using selected model
+                if selected_model_name in models:
+                    batch_model = models[selected_model_name]
                 else:
-                    st.markdown(
-                        '<div class="prediction-box at-risk">'
-                        '<h2 style="color: #E74C3C; text-align: center;">⚠️ High Risk</h2>'
-                        '<p style="text-align: center; font-size: 1.2rem;">Heart disease risk detected - Please consult a healthcare professional</p>'
-                        '</div>',
-                        unsafe_allow_html=True
-                    )
+                    batch_model = list(models.values())[0]
 
-            with col2:
-                st.markdown("#### Probability Breakdown")
-                st.metric("No Disease Probability", f"{probability[0]*100:.2f}%")
-                st.metric("Disease Probability", f"{probability[1]*100:.2f}%")
+                preds = batch_model.predict(input_scaled)
+                prob = batch_model.predict_proba(input_scaled)
 
-                prob_df = pd.DataFrame({
-                    'Category': ['No Disease', 'Disease'],
-                    'Probability': [probability[0]*100, probability[1]*100]
-                })
-                st.bar_chart(prob_df.set_index('Category'))
+                df_display = df_display.reset_index(drop=True)
+                df_display['prediction'] = preds
+                df_display['prob_no_disease'] = prob[:, 0]
+                df_display['prob_disease'] = prob[:, 1]
 
-            # Input summary table
-            st.markdown("---")
-            st.markdown("#### 📊 Input Summary")
-            summary_data = {
-                'Parameter': ['Age', 'Sex', 'Chest Pain Type', 'Resting BP', 'Cholesterol', 
-                             'Max Heart Rate', 'Exercise Angina', 'ST Depression'],
-                'Value': [
-                    f"{age} years",
-                    "Male" if sex == 1 else "Female",
-                    cp,
-                    f"{trestbps} mm Hg",
-                    f"{chol} mg/dl",
-                    f"{thalachh} bpm",
-                    "Yes" if exang == 1 else "No",
-                    f"{oldpeak}"
-                ]
+                st.markdown("### Batch Prediction Results")
+                st.dataframe(df_display, use_container_width=True)
+
+                csv = df_display.to_csv(index=False)
+                st.download_button("Download predictions as CSV", csv, file_name='predictions.csv', mime='text/csv')
+            except Exception as e:
+                st.error(f"Error processing uploaded CSV: {e}")
+        else:
+            # Prepare base features for single prediction
+            base_features = {
+                'age': age,
+                'sex': sex,
+                'cp': cp,
+                'trestbps': trestbps,
+                'chol': chol,
+                'fbs': fbs,
+                'restecg': restecg,
+                'thalachh': thalachh,
+                'exang': exang,
+                'oldpeak': oldpeak,
+                'slope': slope,
+                'ca': ca,
+                'thal': thal
             }
-            st.table(pd.DataFrame(summary_data))
 
-            st.markdown("---")
-            st.warning("⚠️ **Disclaimer**: This is a prediction tool and should not replace professional medical advice. Please consult with a healthcare professional for proper diagnosis and treatment.")
-        except Exception as e:
-            st.error(f"Error making prediction: {e}")
-            st.error("Please ensure all required fields are filled correctly.")
-            import traceback
-            st.error(traceback.format_exc())
+            # Build a single-row DataFrame from manual inputs and reuse the batch preparation
+            try:
+                df_single = pd.DataFrame([base_features])
+                input_scaled, df_features = prepare_batch_inputs(df_single, scaler, feature_names)
+
+                # Select model (fall back if selection missing)
+                if selected_model_name in models:
+                    single_model = models[selected_model_name]
+                else:
+                    single_model = list(models.values())[0]
+
+                prediction = single_model.predict(input_scaled)
+                probability = single_model.predict_proba(input_scaled)[0]
+
+                # Display results
+                st.markdown("### 🎯 Prediction Results")
+                col1, col2 = st.columns(2)
+
+                with col1:
+                    if int(prediction[0]) == 0:
+                        st.markdown(
+                            '<div class="prediction-box healthy">'
+                            '<h2 style="color: #27AE60; text-align: center;">✅ Low Risk</h2>'
+                            '<p style="text-align: center; font-size: 1.2rem;">No significant heart disease risk detected</p>'
+                            '</div>',
+                            unsafe_allow_html=True
+                        )
+                    else:
+                        st.markdown(
+                            '<div class="prediction-box at-risk">'
+                            '<h2 style="color: #E74C3C; text-align: center;">⚠️ High Risk</h2>'
+                            '<p style="text-align: center; font-size: 1.2rem;">Heart disease risk detected - Please consult a healthcare professional</p>'
+                            '</div>',
+                            unsafe_allow_html=True
+                        )
+
+                with col2:
+                    st.markdown("#### Probability Breakdown")
+                    st.metric("No Disease Probability", f"{probability[0]*100:.2f}%")
+                    st.metric("Disease Probability", f"{probability[1]*100:.2f}%")
+
+                    prob_df = pd.DataFrame({
+                        'Category': ['No Disease', 'Disease'],
+                        'Probability': [probability[0]*100, probability[1]*100]
+                    })
+                    st.bar_chart(prob_df.set_index('Category'))
+
+                # Input summary table
+                st.markdown("---")
+                st.markdown("#### 📊 Input Summary")
+                summary_data = {
+                    'Parameter': ['Age', 'Sex', 'Chest Pain Type', 'Resting BP', 'Cholesterol', 
+                                 'Max Heart Rate', 'Exercise Angina', 'ST Depression'],
+                    'Value': [
+                        f"{age} years",
+                        "Male" if sex == 1 else "Female",
+                        cp,
+                        f"{trestbps} mm Hg",
+                        f"{chol} mg/dl",
+                        f"{thalachh} bpm",
+                        "Yes" if exang == 1 else "No",
+                        f"{oldpeak}"
+                    ]
+                }
+                st.table(pd.DataFrame(summary_data))
+
+                st.markdown("---")
+                st.warning("⚠️ **Disclaimer**: This is a prediction tool and should not replace professional medical advice. Please consult with a healthcare professional for proper diagnosis and treatment.")
+            except Exception as e:
+                st.error(f"Error making prediction: {e}")
+                st.error("Please ensure all required fields are filled correctly.")
+                import traceback
+                st.error(traceback.format_exc())
 
 with tab2:
     st.markdown("### 📊 Model Performance Metrics")

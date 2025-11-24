@@ -85,6 +85,81 @@ def load_models():
     
     return models, scaler, feature_names
 
+
+def prepare_batch_inputs(df_input, scaler, feature_names):
+    """Take a DataFrame with base clinical features and return scaled inputs ready for prediction
+    and a DataFrame with original inputs for display."""
+    df = df_input.copy()
+
+    # Ensure required base columns exist
+    base_cols = ['age','sex','cp','trestbps','chol','fbs','restecg','thalachh','exang','oldpeak','slope','ca','thal']
+    missing = [c for c in base_cols if c not in df.columns]
+    if missing:
+        raise ValueError(f"Uploaded CSV is missing required columns: {missing}")
+
+    # Engineered features (vectorized)
+    df['age_chol_interaction'] = df['age'] * df['chol']
+    df['age_bp_interaction'] = df['age'] * df['trestbps']
+    df['bp_chol_ratio'] = df['trestbps'] / (df['chol'] + 1)
+    df['heart_rate_reserve'] = df['thalachh'] - df['age']
+    df['st_depression_severity'] = df['oldpeak'] * (df['slope'] + 1)
+    df['chest_pain_exercise_risk'] = df['cp'] * (df['exang'] + 1)
+
+    # Age groups
+    df['age_group'] = pd.cut(df['age'], bins=[0, 40, 55, 70, 120], labels=[0,1,2,3]).astype(int)
+    # Chol categories
+    df['chol_category'] = pd.cut(df['chol'], bins=[0, 200, 240, 600], labels=[0,1,2]).astype(int)
+
+    # Polynomial features for key columns
+    key_features = [f for f in ['age', 'trestbps', 'chol', 'thalachh', 'oldpeak'] if f in df.columns]
+    if key_features:
+        poly = PolynomialFeatures(degree=2, include_bias=False, interaction_only=False)
+        poly_data = poly.fit_transform(df[key_features])
+        poly_feature_names = poly.get_feature_names_out(key_features)
+        for i, name in enumerate(poly_feature_names):
+            if name not in key_features:
+                df[f'poly_{name}'] = poly_data[:, i]
+
+    # Final feature ordering for scaler
+    input_df = df.copy()
+
+    # Scale features if scaler provided
+    if scaler is not None:
+        try:
+            if hasattr(scaler, 'feature_names_in_'):
+                scaler_features = list(scaler.feature_names_in_)
+                for feat in scaler_features:
+                    if feat not in input_df.columns:
+                        input_df[feat] = 0
+                input_for_scaling = input_df[scaler_features]
+                input_scaled_all = scaler.transform(input_for_scaling)
+                if feature_names:
+                    selected_indices = [scaler_features.index(f) for f in feature_names if f in scaler_features]
+                    input_scaled = input_scaled_all[:, selected_indices]
+                else:
+                    input_scaled = input_scaled_all
+            else:
+                # Fallback
+                if feature_names:
+                    for feat in feature_names:
+                        if feat not in input_df.columns:
+                            input_df[feat] = 0
+                    input_df = input_df[feature_names]
+                input_scaled = scaler.transform(input_df)
+        except Exception:
+            # If scaling fails, proceed without scaling
+            input_scaled = input_df.values
+    else:
+        if feature_names:
+            for feat in feature_names:
+                if feat not in input_df.columns:
+                    input_df[feat] = 0
+            input_scaled = input_df[feature_names].values
+        else:
+            input_scaled = input_df.values
+
+    return input_scaled, df
+
 # Sidebar - Model Selection
 st.sidebar.title("⚙️ Configuration")
 models, scaler, feature_names = load_models()
@@ -254,116 +329,26 @@ with tab1:
             'thal': thal
         }
         
-        # Create engineered features (same as in training pipeline)
-        engineered_features = {}
-        
-        # Age-related interactions
-    def prepare_batch_inputs(df_input, scaler, feature_names):
-        """Take a DataFrame with base clinical features and return scaled inputs ready for prediction
-        and a DataFrame with original inputs for display."""
-        df = df_input.copy()
+        # Build a single-row DataFrame from manual inputs and reuse the batch preparation
+        try:
+            df_single = pd.DataFrame([base_features])
+            input_scaled, df_features = prepare_batch_inputs(df_single, scaler, feature_names)
 
-        # Ensure required base columns exist
-        base_cols = ['age','sex','cp','trestbps','chol','fbs','restecg','thalachh','exang','oldpeak','slope','ca','thal']
-        missing = [c for c in base_cols if c not in df.columns]
-        if missing:
-            raise ValueError(f"Uploaded CSV is missing required columns: {missing}")
-
-        # Engineered features (vectorized)
-        df['age_chol_interaction'] = df['age'] * df['chol']
-        df['age_bp_interaction'] = df['age'] * df['trestbps']
-        df['bp_chol_ratio'] = df['trestbps'] / (df['chol'] + 1)
-        df['heart_rate_reserve'] = df['thalachh'] - df['age']
-        df['st_depression_severity'] = df['oldpeak'] * (df['slope'] + 1)
-        df['chest_pain_exercise_risk'] = df['cp'] * (df['exang'] + 1)
-
-        # Age groups
-        df['age_group'] = pd.cut(df['age'], bins=[0, 40, 55, 70, 120], labels=[0,1,2,3]).astype(int)
-        # Chol categories
-        df['chol_category'] = pd.cut(df['chol'], bins=[0, 200, 240, 600], labels=[0,1,2]).astype(int)
-
-        # Polynomial features for key columns
-        key_features = [f for f in ['age', 'trestbps', 'chol', 'thalachh', 'oldpeak'] if f in df.columns]
-        if key_features:
-            poly = PolynomialFeatures(degree=2, include_bias=False, interaction_only=False)
-            poly_data = poly.fit_transform(df[key_features])
-            poly_feature_names = poly.get_feature_names_out(key_features)
-            for i, name in enumerate(poly_feature_names):
-                if name not in key_features:
-                    df[f'poly_{name}'] = poly_data[:, i]
-
-        # Final feature ordering for scaler
-        input_df = df.copy()
-
-        # Scale features if scaler provided
-        if scaler is not None:
-            try:
-                if hasattr(scaler, 'feature_names_in_'):
-                    scaler_features = list(scaler.feature_names_in_)
-                    for feat in scaler_features:
-                        if feat not in input_df.columns:
-                            input_df[feat] = 0
-                    input_for_scaling = input_df[scaler_features]
-                    input_scaled_all = scaler.transform(input_for_scaling)
-                    if feature_names:
-                        selected_indices = [scaler_features.index(f) for f in feature_names if f in scaler_features]
-                        input_scaled = input_scaled_all[:, selected_indices]
-                    else:
-                        input_scaled = input_scaled_all
-                else:
-                    # Fallback
-                    if feature_names:
-                        for feat in feature_names:
-                            if feat not in input_df.columns:
-                                input_df[feat] = 0
-                        input_df = input_df[feature_names]
-                    input_scaled = scaler.transform(input_df)
-            except Exception:
-                # If scaling fails, proceed without scaling
-                input_scaled = input_df.values
-        else:
-            if feature_names:
-                for feat in feature_names:
-                    if feat not in input_df.columns:
-                        input_df[feat] = 0
-                input_scaled = input_df[feature_names].values
+            # Select model (fall back if selection missing)
+            if selected_model_name in models:
+                single_model = models[selected_model_name]
             else:
-                input_scaled = input_df.values
+                single_model = list(models.values())[0]
 
-        return input_scaled, df
-                        selected_indices = [scaler_features.index(f) for f in feature_names if f in scaler_features]
-                        input_scaled = input_scaled_all[:, selected_indices]
-                    else:
-                        input_scaled = input_scaled_all
-                else:
-                    # Fallback: scaler doesn't have feature_names_in_ (shouldn't happen with sklearn >= 1.0)
-                    # Assume feature_names has the right features
-                    if feature_names:
-                        for feat in feature_names:
-                            if feat not in input_df.columns:
-                                input_df[feat] = 0
-                        input_df = input_df[feature_names]
-                    input_scaled = scaler.transform(input_df)
-            else:
-                # If no scaler, just use the selected features
-                if feature_names:
-                    for feat in feature_names:
-                        if feat not in input_df.columns:
-                            input_df[feat] = 0
-                    input_df = input_df[feature_names]
-                input_scaled = input_df.values
-            
-            # Make prediction
-            prediction = model.predict(input_scaled)
-            probability = model.predict_proba(input_scaled)[0]
-            
+            prediction = single_model.predict(input_scaled)
+            probability = single_model.predict_proba(input_scaled)[0]
+
             # Display results
             st.markdown("### 🎯 Prediction Results")
-            
             col1, col2 = st.columns(2)
-            
+
             with col1:
-                if prediction[0] == 0:
+                if int(prediction[0]) == 0:
                     st.markdown(
                         '<div class="prediction-box healthy">'
                         '<h2 style="color: #27AE60; text-align: center;">✅ Low Risk</h2>'
@@ -379,20 +364,19 @@ with tab1:
                         '</div>',
                         unsafe_allow_html=True
                     )
-            
+
             with col2:
                 st.markdown("#### Probability Breakdown")
                 st.metric("No Disease Probability", f"{probability[0]*100:.2f}%")
                 st.metric("Disease Probability", f"{probability[1]*100:.2f}%")
-                
-                # Probability bar chart
+
                 prob_df = pd.DataFrame({
                     'Category': ['No Disease', 'Disease'],
                     'Probability': [probability[0]*100, probability[1]*100]
                 })
                 st.bar_chart(prob_df.set_index('Category'))
-            
-            # Show top contributing features
+
+            # Input summary table
             st.markdown("---")
             st.markdown("#### 📊 Input Summary")
             summary_data = {
@@ -410,12 +394,9 @@ with tab1:
                 ]
             }
             st.table(pd.DataFrame(summary_data))
-            
-            # Disclaimer
+
             st.markdown("---")
-            st.warning("⚠️ **Disclaimer**: This is a prediction tool and should not replace professional medical advice. "
-                      "Please consult with a healthcare professional for proper diagnosis and treatment.")
-            
+            st.warning("⚠️ **Disclaimer**: This is a prediction tool and should not replace professional medical advice. Please consult with a healthcare professional for proper diagnosis and treatment.")
         except Exception as e:
             st.error(f"Error making prediction: {e}")
             st.error("Please ensure all required fields are filled correctly.")

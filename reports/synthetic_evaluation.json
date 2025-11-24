@@ -1,0 +1,70 @@
+{
+  "quality_evaluation": {
+    "overall_score": 0.0,
+    "column_scores": {
+      "age": 0.0,
+      "sex": 0.0,
+      "cp": 0.0,
+      "trestbps": 0.0,
+      "chol": 0.0,
+      "fbs": 0.0,
+      "restecg": 0.0,
+      "thalachh": 0.0,
+      "exang": 0.0,
+      "oldpeak": 0.0,
+      "slope": 0.0,
+      "ca": 0.0,
+      "thal": 0.0,
+      "target": 0.0
+    },
+    "metric": "KS Complement (higher is better)"
+  },
+  "ml_evaluation": {
+    "baseline": {
+      "accuracy": 0.9708994708994709,
+      "precision": 0.9601990049751243,
+      "recall": 0.9846938775510204,
+      "f1": 0.9722921914357683,
+      "auc": 0.9982899753307917
+    },
+    "augmented": {
+      "accuracy": 0.7599771949828963,
+      "precision": 0.7644191714053615,
+      "recall": 0.8777985074626866,
+      "f1": 0.8171949630916197,
+      "auc": 0.8276989320260866
+    },
+    "comparison": {
+      "accuracy": {
+        "baseline": 0.9708994708994709,
+        "augmented": 0.7599771949828963,
+        "difference": -0.21092227591657464,
+        "percent_difference": -21.724419699309323
+      },
+      "precision": {
+        "baseline": 0.9601990049751243,
+        "augmented": 0.7644191714053615,
+        "difference": -0.1957798335697628,
+        "percent_difference": -20.38950598317219
+      },
+      "recall": {
+        "baseline": 0.9846938775510204,
+        "augmented": 0.8777985074626866,
+        "difference": -0.10689537008833383,
+        "percent_difference": -10.855695615188306
+      },
+      "f1": {
+        "baseline": 0.9722921914357683,
+        "augmented": 0.8171949630916197,
+        "difference": -0.15509722834414863,
+        "percent_difference": -15.951709754566581
+      },
+      "auc": {
+        "baseline": 0.9982899753307917,
+        "augmented": 0.8276989320260866,
+        "difference": -0.1705910433047051,
+        "percent_difference": -17.088325789125385
+      }
+    }
+  }
+}

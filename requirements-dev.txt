@@ -1,0 +1,20 @@
+# Development dependencies
+# Install with: pip install -r requirements-dev.txt
+
+# Testing
+pytest==7.4.3
+pytest-cov==4.1.0
+
+# Code quality
+black==23.12.1
+flake8==7.0.0
+pylint==3.0.3
+
+# Notebook tools
+ipykernel==6.27.1
+
+# Type checking
+mypy==1.8.0
+
+# Documentation
+sphinx==7.2.6

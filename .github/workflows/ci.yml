@@ -1,0 +1,65 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.9'
+    
+    - name: Cache dependencies
+      uses: actions/cache@v3
+      with:
+        path: ~/.cache/pip
+        key: ${{ runner.os }}-pip-${{ hashFiles('requirements.txt') }}
+        restore-keys: |
+          ${{ runner.os }}-pip-
+    
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+    
+    - name: Check code formatting
+      run: |
+        pip install black flake8
+        black --check . || true
+        flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics || true
+    
+    # Skipping model training for now as requested
+    # - name: Train models with HRLFM pipeline
+    #   run: |
+    #     python train_hrlfm_pipeline.py
+    #   timeout-minutes: 15
+    
+    # - name: Verify models are generated
+    #   run: |
+    #     ls -la models/
+    #     if [ ! -f "models/best_model.pkl" ]; then
+    #       echo "best_model.pkl not found after training"
+    #       exit 1
+    #     fi
+    #     if [ ! -f "models/scaler.pkl" ]; then
+    #       echo "scaler.pkl not found after training"
+    #       exit 1
+    #     fi
+    #     if [ ! -f "models/feature_names.pkl" ]; then
+    #       echo "feature_names.pkl not found after training"
+    #       exit 1
+    #     fi
+    #     echo "All required models generated successfully"
+    
+    - name: Test Streamlit app imports
+      run: |
+        python -c "import sys; sys.path.insert(0, 'app'); import streamlit_app; print('App imports successfully')"

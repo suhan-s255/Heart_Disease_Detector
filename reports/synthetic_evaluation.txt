@@ -1,0 +1,62 @@
+============================================================
+SYNTHETIC DATA EVALUATION REPORT
+============================================================
+
+DATA QUALITY EVALUATION
+------------------------------------------------------------
+Overall Quality Score: 0.0000
+
+Metric: KS Complement (higher is better)
+Column Scores:
+  age: 0.0000
+  sex: 0.0000
+  cp: 0.0000
+  trestbps: 0.0000
+  chol: 0.0000
+  fbs: 0.0000
+  restecg: 0.0000
+  thalachh: 0.0000
+  exang: 0.0000
+  oldpeak: 0.0000
+  slope: 0.0000
+  ca: 0.0000
+  thal: 0.0000
+  target: 0.0000
+
+MACHINE LEARNING EVALUATION
+------------------------------------------------------------
+
+Baseline (Cleaned Dataset):
+  accuracy: 0.9709
+  precision: 0.9602
+  recall: 0.9847
+  f1: 0.9723
+  auc: 0.9983
+
+Augmented (Synthetic Dataset):
+  accuracy: 0.7600
+  precision: 0.7644
+  recall: 0.8778
+  f1: 0.8172
+  auc: 0.8277
+
+Comparison:
+  accuracy:
+    Difference: -0.2109
+    Percent Difference: -21.72%
+  precision:
+    Difference: -0.1958
+    Percent Difference: -20.39%
+  recall:
+    Difference: -0.1069
+    Percent Difference: -10.86%
+  f1:
+    Difference: -0.1551
+    Percent Difference: -15.95%
+  auc:
+    Difference: -0.1706
+    Percent Difference: -17.09%
+
+============================================================
+RESULT: WARNING - Some metrics exceed ±3% absolute difference
+============================================================

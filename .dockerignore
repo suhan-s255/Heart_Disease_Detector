@@ -1,0 +1,43 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+ENV/
+*.egg-info/
+
+# Jupyter
+.ipynb_checkpoints
+
+# Git
+.git
+.gitignore
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Models (will be generated)
+models/*.pkl
+models/*.joblib
+models/*.h5
+
+# Tests
+tests/
+.pytest_cache/
+
+# Documentation
+*.md
+!README.md
+
+# CI/CD
+.github/

@@ -36,6 +36,10 @@ htmlcov/
 # Models
 *.pkl
 *.joblib
+
+# Allow storing model artifacts in the repository models/ folder (override above)
+!models/*.pkl
+!models/*.joblib
 *.h5
 
 # Environment
